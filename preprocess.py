@@ -33,6 +33,12 @@ def apply_tokenizer(path, tokenizer, normalize_text=False):
     tokens = [torch.tensor(x, dtype=torch.int) for x in tokens]
     alltokens.extend(tokens)
 
+    # I don't like the way they're doing this. Not respecting document boundaries at all
+    # TODO: back up a step and think more carefully about how to split wikipedia on complete
+    # documents, and then think about how to split  
+    # could feed batches of complete documents from the datasets libray and
+    # then breakdown by paragraphs (split on \n\n), and then save encoded content
+    # as JSON files mapping title_pararagraph_number to the encoded text content
     alltokens = torch.cat(alltokens)
     return alltokens
 

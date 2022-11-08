@@ -129,6 +129,7 @@ def eval_model(opt, query_encoder, doc_encoder, tokenizer, tb_logger, step):
 if __name__ == "__main__":
     logger.info("Start")
 
+    # this is the argparser
     options = Options()
     opt = options.parse()
 

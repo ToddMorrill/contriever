@@ -135,12 +135,14 @@ class Collator(object):
 
 
 def randomcrop(x, ratio_min, ratio_max):
-
     ratio = random.uniform(ratio_min, ratio_max)
     length = int(len(x) * ratio)
     start = random.randint(0, len(x) - length)
     end = start + length
     crop = x[start:end].clone()
+
+    if torch.tensor(-1, dtype=torch.int) in crop:
+        randomcrop(x, ratio_min, ratio_max)
     return crop
 
 

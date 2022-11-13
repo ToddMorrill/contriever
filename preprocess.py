@@ -74,6 +74,7 @@ def tokenize_data(data_dict):
         tokenizer = transformers.AutoTokenizer.from_pretrained(args.tokenizer, local_files_only=False)
     print(f"Encoding generated dataset...")
 
+    # data_dict is currently being tested using a smaller dataset (Rotten Tomatoes)
     tokens = apply_tokenize_gen_data(data_dict, tokenizer, normalize_text=args.normalize_text)
     
     print(f"Saving at {savepath}...")
@@ -89,9 +90,12 @@ def apply_tokenize_gen_data(data_dict, tokenizer, normalize_text=False):
         if normalize_text:
             text = normalize(text)
 
+        # Store each document text in lines
+        # Track the length of the document to know where to insert special token for the end
         lines.append(text)
         doc_ends.append(len(text))
 
+    # Insert special token for end of document
     tokens = tokenizer.batch_encode_plus(lines, add_special_tokens=False)['input_ids']
     for i in range(len(doc_ends)):
         tokens.insert(doc_ends[i]+ i, [-1])
@@ -100,6 +104,9 @@ def apply_tokenize_gen_data(data_dict, tokenizer, normalize_text=False):
     alltokens.extend(tokens)
     alltokens = torch.cat(alltokens)
 
+    # TODO: I'm not sure if these should be equal, but they're currently not.
+    # I would have thought the number of words (sum of lengths of each document) should
+    # be equal to the total number of tokens produced.
     print('Number of all words: ', sum(doc_ends))
     print('Number of all tokens: ', len(alltokens))
 

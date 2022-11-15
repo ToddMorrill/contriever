@@ -33,6 +33,7 @@ def load_dataset(data_path, loading_mode):
     files.sort()
     tensors = []
     if loading_mode == "split":
+        # loads files into different tensors, on a per GPU basis
         files_split = list(np.array_split(files, dist_utils.get_world_size()))[dist_utils.get_rank()]
         for filepath in files_split:
             try:
@@ -40,6 +41,7 @@ def load_dataset(data_path, loading_mode):
             except:
                 logger.warning(f"Unable to load file {filepath}")
     elif loading_mode == "full":
+        # loads all files into a single tensor
         for fin in files:
             tensors.append(torch.load(fin, map_location="cpu"))
     elif loading_mode == "single":

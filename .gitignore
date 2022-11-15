@@ -143,4 +143,6 @@ dmypy.json
 *.zip
 000
 en_XX.txt
-*/checkpoints/*
+*checkpoints/*
+*.out
+scifact

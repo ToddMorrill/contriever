@@ -5,6 +5,7 @@ import torch.nn as nn
 import logging
 import copy
 import transformers
+import os 
 
 from src import contriever, dist_utils, utils
 
@@ -118,7 +119,7 @@ class MoCo(nn.Module):
         logits = self._compute_logits(q, k) / self.temperature
 
         # labels: positive key indicators
-        labels = torch.zeros(bsz, dtype=torch.long).cuda()
+        labels = torch.zeros(bsz, dtype=torch.long).to(int(os.environ['LOCAL_RANK']))
 
         loss = torch.nn.functional.cross_entropy(logits, labels, label_smoothing=self.label_smoothing)
 

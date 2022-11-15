@@ -12,7 +12,7 @@ class Options:
     def initialize(self):
         # basic parameters
         self.parser.add_argument(
-            "--output_dir", type=str, default="./checkpoint/my_experiments", help="models are saved here"
+            "--output_dir", type=str, default="./checkpoint/", help="models are saved here"
         )
         self.parser.add_argument(
             "--train_data",
@@ -32,8 +32,8 @@ class Options:
         self.parser.add_argument(
             "--eval_datasets_dir", type=str, default="./", help="Directory where eval datasets are stored"
         )
-        self.parser.add_argument("--model_path", type=str, default="none", help="path for retraining")
-        self.parser.add_argument("--continue_training", action="store_true")
+        self.parser.add_argument("--model_path", type=str, default="./checkpoint/", help="path for retraining")
+        self.parser.add_argument("--reset_params", action="store_true", help="If passed, create a new model with new parameters.")
         self.parser.add_argument("--num_workers", type=int, default=5)
 
         self.parser.add_argument("--chunk_length", type=int, default=256)
@@ -77,7 +77,7 @@ class Options:
         self.parser.add_argument("--total_steps", type=int, default=1000)
         self.parser.add_argument("--warmup_steps", type=int, default=-1)
 
-        self.parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
+        self.parser.add_argument("--torchrun", action='store_true', help="Set flag for distributed training with torchrun")
         self.parser.add_argument("--main_port", type=int, default=10001, help="Master port (for multi-node SLURM jobs)")
         self.parser.add_argument("--seed", type=int, default=0, help="random seed for initialization")
         # training parameters

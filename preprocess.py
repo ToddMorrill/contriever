@@ -6,6 +6,7 @@ import torch
 
 import transformers
 from src.normalize_text import normalize
+import googletrans
 
 
 def save(tensor, split_path):
@@ -54,6 +55,21 @@ def tokenize_file(args):
 
     print(f"Saving at {savepath}...")
     save(tokens, savepath)
+
+def back_translate(text: str, dst_language: str, translator: googletrans.Translator) -> str:
+    """ Translate the sentence to dst_language and translate back.
+        Args:
+            text: input text string
+            dst_language: target translated language
+            translator: Google translator
+        
+        Returns:
+            string of transplated English sentence
+    
+    """
+    forward_translate_text = translator.translate(text, dest = dst_language, src='en')
+    back_translate_text = translator.translate(forward_translate_text, dest='en', src=dst_language)
+    return back_translate_text
 
 
 if __name__ == '__main__':

@@ -142,7 +142,7 @@ def randomcrop(x, ratio_min, ratio_max):
     crop = x[start:end].clone()
 
     if torch.tensor(-1, dtype=torch.int) in crop:
-        randomcrop(x, ratio_min, ratio_max)
+        return randomcrop(x, ratio_min, ratio_max)
     return crop
 
 

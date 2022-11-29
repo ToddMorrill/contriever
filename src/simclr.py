@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import transformers
 import logging
 
@@ -14,9 +15,8 @@ class SimClr(nn.Module):
 
         self.opt = opt
         
-        # won't do normalization due to the dimension reduction of the last part 
-        self.norm_doc = False   # opt.norm_doc
-        self.norm_query = False # opt.norm_query
+        self.norm_doc = opt.norm_doc
+        self.norm_query = opt.norm_query
         
         self.label_smoothing = opt.label_smoothing
         if retriever is None or tokenizer is None:
@@ -25,10 +25,6 @@ class SimClr(nn.Module):
             )
         self.tokenizer = tokenizer
         self.encoder = retriever
-        
-        # set output dimension
-        self.out_dim = out_dim
-        self.mlp = nn.Linear(opt.projection_size, 128)
 
     def _load_retriever(self, model_id, pooling, random_init):
         cfg = utils.load_hf(transformers.AutoConfig, model_id)
@@ -57,6 +53,34 @@ class SimClr(nn.Module):
     def get_encoder(self):
         return self.encoder
 
+
+    def info_nce_loss(self, batch_size: int, n_view: int=2):
+        labels = torch.cat([torch.arange(batch_size) for i in range(2)], dim=0)
+        labels = (labels.unsqueeze(0) == labels.unsqueeze(1)).float()
+        labels = labels.to(self.args.device)
+
+        features = F.normalize(features, dim=1)
+
+        similarity_matrix = torch.matmul(features, features.T)
+        
+        # discard the main diagonal from both: labels and similarities matrix
+        mask = torch.eye(labels.shape[0], dtype=torch.bool).to(self.opt.device)
+        labels = labels[~mask].view(labels.shape[0], -1)
+        similarity_matrix = similarity_matrix[~mask].view(similarity_matrix.shape[0], -1)
+        # assert similarity_matrix.shape == labels.shape
+
+        # select and combine multiple positives
+        positives = similarity_matrix[labels.bool()].view(labels.shape[0], -1)
+
+        # select only the negatives the negatives
+        negatives = similarity_matrix[~labels.bool()].view(similarity_matrix.shape[0], -1)
+
+        logits = torch.cat([positives, negatives], dim=1)
+        labels = torch.zeros(logits.shape[0], dtype=torch.long).to(self.opt.device)
+
+        logits = logits / self.opt.temperature
+        return logits, labels
+
     def forward(self, q_tokens, q_mask, k_tokens, k_mask, stats_prefix="", iter_stats={}, **kwargs):
 
         bsz = len(q_tokens)
@@ -65,26 +89,25 @@ class SimClr(nn.Module):
         qemb = self.encoder(input_ids=q_tokens, attention_mask=q_mask, normalize=self.norm_query)
         kemb = self.encoder(input_ids=k_tokens, attention_mask=k_mask, normalize=self.norm_doc)
 
-        # dimension reduction and normalize text
-        qemb = nn.functional.normalize(self.mlp(qemb), axis=-1)
-        kemb = nn.functional.normalize(self.mlp(kemb), axis=-1)
-
         gather_fn = dist_utils.gather
 
         gather_kemb = gather_fn(kemb)
+        gather_qemb = gather_fn(qemb)
 
-        labels = labels + dist_utils.get_rank() * len(kemb)
+        logits, labels = self.info_nce_loss(torch.cat([gather_kemb, gather_qemb], dim=0),
+                                            batch_size = bsz, n_view = 2)
+        loss = F.cross_entropy(logits, labels, label_smoothing=self.label_smoothing)
 
-        scores = torch.einsum("id, jd->ij", qemb / self.opt.temperature, gather_kemb)
-
-        loss = torch.nn.functional.cross_entropy(scores, labels, label_smoothing=self.label_smoothing)
+        # labels = labels + dist_utils.get_rank() * len(kemb)
+        # scores = torch.einsum("id, jd->ij", qemb / self.opt.temperature, gather_kemb)
+        # loss = torch.nn.functional.cross_entropy(scores, labels, label_smoothing=self.label_smoothing)
 
         # log stats
         if len(stats_prefix) > 0:
             stats_prefix = stats_prefix + "/"
         iter_stats[f"{stats_prefix}loss"] = (loss.item(), bsz)
 
-        predicted_idx = torch.argmax(scores, dim=-1)
+        predicted_idx = torch.argmax(logits, dim=-1)
         accuracy = 100 * (predicted_idx == labels).float().mean()
         stdq = torch.std(qemb, dim=0).mean().item()
         stdk = torch.std(kemb, dim=0).mean().item()

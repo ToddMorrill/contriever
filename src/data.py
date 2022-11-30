@@ -11,7 +11,7 @@ import numpy.random
 import logging
 from collections import defaultdict
 import torch.distributed as dist
-
+import json
 from src import dist_utils
 
 logger = logging.getLogger(__name__)
@@ -29,21 +29,33 @@ def load_data(opt, tokenizer):
 
 
 def load_dataset(data_path, loading_mode):
-    files = glob.glob(os.path.join(data_path, "*.p*"))
+    files = glob.glob(os.path.join(data_path, "*.j*"))
     files.sort()
     tensors = []
     if loading_mode == "split":
         files_split = list(np.array_split(files, dist_utils.get_world_size()))[dist_utils.get_rank()]
         for filepath in files_split:
             try:
-                tensors.append(torch.load(filepath, map_location="cpu"))
+                docs = json.load(filepath)["docs"]
+                for doc in docs:
+                    tensors.append(torch.Tensor(doc['tokens']))
+                    tensors.append(torch.Tensor(-1))
+                #check downstream if each token needs to be a tensor itself, not an integer inside a tensor object
+                #tensors.append(torch.load(filepath, map_location="cpu"))
             except:
                 logger.warning(f"Unable to load file {filepath}")
     elif loading_mode == "full":
         for fin in files:
-            tensors.append(torch.load(fin, map_location="cpu"))
+            docs = json.load(fin)["docs"]
+            for doc in docs:
+                tensors.append(torch.Tensor(doc['tokens']))
+                tensors.append(torch.Tensor(-1))
     elif loading_mode == "single":
-        tensors.append(torch.load(files[0], map_location="cpu"))
+        filepath = files[0]
+        docs = json.load(filepath)["docs"]
+        for doc in docs:
+            tensors.append(torch.Tensor(doc['tokens']))
+            tensors.append(torch.Tensor(-1))
     if len(tensors) == 0:
         return None
     tensor = torch.cat(tensors)
@@ -86,7 +98,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def __init__(self, data, chunk_length, tokenizer, opt):
 
-        self.data = data
+        self.data = data #data is now a list of tensors corresponding to each document
         self.chunk_length = chunk_length
         self.tokenizer = tokenizer
         self.opt = opt
@@ -99,6 +111,15 @@ class Dataset(torch.utils.data.Dataset):
         start_idx = self.offset + index * self.chunk_length
         end_idx = start_idx + self.chunk_length
         tokens = self.data[start_idx:end_idx]
+
+        #takes a smaller crop if a document crossover occurs (chunk size is reduced to at most 128)
+        if torch.Tensor(-1) in tokens:
+            neg_idx = (tokens==-1).nonzero(as_tuple=True)[0]
+            if (neg_idx >= self.chunk_length/2):
+                tokens = tokens[0:neg_idx]
+            else:
+                tokens = tokens[neg_idx+1:]
+
         q_tokens = randomcrop(tokens, self.opt.ratio_min, self.opt.ratio_max)
         k_tokens = randomcrop(tokens, self.opt.ratio_min, self.opt.ratio_max)
         q_tokens = apply_augmentation(q_tokens, self.opt)

@@ -10,7 +10,7 @@ from datasets import load_dataset
 
 import json
 import itertools
-
+import time
 
 def save(tensor, split_path):
     if not os.path.exists(os.path.dirname(split_path)):
@@ -81,12 +81,12 @@ def tokenize_data(data_dict, idx):
 
     # data_dict is currently being tested using a smaller dataset (Rotten Tomatoes)
     docs = []
-    for i in range(len(data_dict['label'])):
-        token = apply_tokenize_gen_data(data_dict[i], tokenizer, normalize_text=args.normalize_text)
+    token = tokenizer.batch_encode_plus(data_dict['text'], add_special_tokens=False)['input_ids']
+    for i in range(len(data_dict['text'])):
         doc = {
             'id': data_dict['id'][i],
             'title': data_dict['title'][i],
-            'tokens': token.numpy().tolist(),
+            'tokens': token[i],
             'text': data_dict['text'][i],
             'url': data_dict['url'][i]
         }
@@ -107,27 +107,23 @@ def apply_tokenize_gen_data(data_dict, tokenizer, normalize_text=False):
     lines = []
     doc_ends = []
 
-    for text in data_dict['text']:
-        if normalize_text:
-            text = normalize(text)
+    # for text in data_dict['text']:
+    #     if normalize_text:
+    #         text = normalize(text)
 
-        # Store each document text in lines
-        # Track the length of the document to know where to insert special token for the end
-        lines.append(text)
-        doc_ends.append(len(text))
+    #     # Store each document text in lines
+    #     # Track the length of the document to know where to insert special token for the end
+    #     lines.append(text)
+    #     doc_ends.append(len(text))
 
     # Insert special token for end of document
-    tokens = tokenizer.batch_encode_plus(lines, add_special_tokens=False)['input_ids']
-
-    tokens = [torch.tensor(x, dtype=torch.int) for x in tokens]
-    alltokens.extend(tokens)
-    alltokens = torch.cat(alltokens)
+    tokens = tokenizer.batch_encode_plus(data_dict['text'], add_special_tokens=False)['input_ids']
 
     # TODO: I'm not sure if these should be equal, but they're currently not.
     # I would have thought the number of words (sum of lengths of each document) should
     # be equal to the total number of tokens produced.
 
-    return alltokens
+    return tokens
 
 def split_data(input_data, n_chunks=128):
     print(len(input_data))
@@ -139,8 +135,8 @@ def split_data(input_data, n_chunks=128):
         end = start + step
         tmp_data = input_data.select(range(start, end))
 
-        print(len(tmp_data['label']))
-        if len(tmp_data['label']) == 0:
+        print(len(tmp_data['text']))
+        if len(tmp_data['text']) == 0:
             break
 
         tokenize_data(tmp_data, c)
@@ -157,5 +153,10 @@ if __name__ == '__main__':
     args, _ = parser.parse_known_args()
 
     data_dict = load_dataset("wikipedia", "20220301.en", split="train")
-    split_data(data_dict)
+    print('length of whole wikipedia', len(data_dict))
+    start = time.time()
+    nArticles = 1280
+    temp_datadict = data_dict.select(range(0,nArticles))
+    split_data(temp_datadict)
+    print(nArticles, 'articles, time taken:', time.time()-start)
     # tokenize_file(args)

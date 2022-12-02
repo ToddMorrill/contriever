@@ -102,6 +102,7 @@ class XLMRetriever(XLMRobertaModel):
 
 def load_retriever(model_path, pooling="average", random_init=False):
     # try: check if model exists locally
+    model_path = os.path.realpath(os.path.abspath(model_path))
     path = os.path.join(model_path, "checkpoint.pth")
     if os.path.exists(path):
         pretrained_dict = torch.load(path, map_location="cpu")

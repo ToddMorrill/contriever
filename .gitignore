@@ -146,3 +146,5 @@ en_XX.txt
 *checkpoints/*
 *.out
 scifact
+beir-data
+results

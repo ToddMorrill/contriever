@@ -1,7 +1,9 @@
-torch==1.11.0
+beir #==1.0.0 # TODO: update version
+torch==1.13.0
 transformers==4.18.0
-beir==1.0.0
 datasets
 apache_beam
 mwparserfromhell
 tqdm
+ipykernel
+evaluate

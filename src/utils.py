@@ -7,6 +7,7 @@ import torch
 import errno
 from typing import Union, Tuple, List, Dict
 from collections import defaultdict
+import math
 
 from src import dist_utils
 
@@ -58,13 +59,15 @@ def save(model, optimizer, scheduler, step, opt, dir_path, name):
         "opt": opt,
     }
     torch.save(checkpoint, fp)
-    symlink_force(epoch_path, cp)
+    # TODO: any unintended consequences of using abspath?
+    symlink_force(os.path.abspath(epoch_path), os.path.abspath(cp))
     if not name == "lastlog":
         logger.info(f"Saving model to {epoch_path}")
 
 
 def load(model_class, dir_path, opt, reset_params=False):
-    epoch_path = os.path.realpath(dir_path)
+    # TODO: should we relax this from abspath?
+    epoch_path = os.path.realpath(os.path.abspath(dir_path))
     checkpoint_path = os.path.join(epoch_path, "checkpoint.pth")
     logger.info(f"loading checkpoint {checkpoint_path}")
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
@@ -73,7 +76,10 @@ def load(model_class, dir_path, opt, reset_params=False):
 
     model = model_class(opt_checkpoint)
     model.load_state_dict(state_dict, strict=True)
-    model = model.cuda()
+    # TODO: may need to update this to code below
+    # also need handle the case for single GPU training
+    model = model.to(dist_utils.get_rank())
+    # model = model.cuda()
     step = checkpoint["step"]
     if not reset_params:
         optimizer, scheduler = set_optim(opt_checkpoint, model)
@@ -177,8 +183,25 @@ class WeightedAvgStats:
     @property
     def average_stats(self) -> Dict[str, float]:
         keys = sorted(self.raw_stats.keys())
+        # was experiencing hanging here, do we to broadcast these keys
+        # or does everyone already have them?
+        # https://fairscale.readthedocs.io/en/latest/_modules/fairscale/optim/oss.html
+
+        # # try creating a None list?
+        # if not dist_utils.is_main():
+        #     keys = [None]*len(keys)
+        # if dist_utils.is_main():
+        #     print('Attempting broadcast from rank 0')
+        # print(f'Keys list on rank {dist_utils.get_rank()}: {keys}')
+        # if torch.distributed.is_initialized():
+        #     print(f'Running broadcast from rank {dist_utils.get_rank()}')
+        #     torch.distributed.broadcast_object_list(keys, src=0)
+        # print(f'Made it past broadcast on rank {dist_utils.get_rank()}')
+        
+        # maybe this was needed for syncronization, will just add a barrier for now?
         if torch.distributed.is_initialized():
-            torch.distributed.broadcast_object_list(keys, src=0)
+            torch.distributed.barrier()
+        
         global_dict = {}
         for k in keys:
             if not k in self.total_weights:

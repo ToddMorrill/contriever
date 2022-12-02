@@ -2,6 +2,7 @@
 
 import torch
 import torch.distributed as dist
+import os
 
 
 class Gather(torch.autograd.Function):
@@ -75,11 +76,13 @@ def get_varsize(x: torch.Tensor):
 
 
 def get_rank():
+    # TODO: should we be able to specify a particular GPU other than 0?
     if not dist.is_available():
         return 0
     if not dist.is_initialized():
         return 0
-    return dist.get_rank()
+    rank = int(os.environ['LOCAL_RANK'])
+    return rank
 
 
 def is_main():
@@ -121,8 +124,9 @@ def weighted_average(x, count):
         if isinstance(x, torch.Tensor):
             x = x.item()
         return x, count
-    t_loss = torch.tensor([x * count]).cuda()
-    t_total = torch.tensor([count]).cuda()
+    # TODO: anything that needs to be done here to handle the single GPU case?
+    t_loss = torch.tensor([x * count]).to(get_rank())
+    t_total = torch.tensor([count]).to(get_rank())
     t_loss = sum_main(t_loss)
     t_total = sum_main(t_total)
     return (t_loss / t_total).item(), t_total.item()

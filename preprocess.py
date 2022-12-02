@@ -6,7 +6,6 @@ import torch
 
 import transformers
 from src.normalize_text import normalize
-import googletrans
 
 
 def save(tensor, split_path):
@@ -34,6 +33,12 @@ def apply_tokenizer(path, tokenizer, normalize_text=False):
     tokens = [torch.tensor(x, dtype=torch.int) for x in tokens]
     alltokens.extend(tokens)
 
+    # I don't like the way they're doing this. Not respecting document boundaries at all
+    # TODO: back up a step and think more carefully about how to split wikipedia on complete
+    # documents, and then think about how to split  
+    # could feed batches of complete documents from the datasets libray and
+    # then breakdown by paragraphs (split on \n\n), and then save encoded content
+    # as JSON files mapping title_pararagraph_number to the encoded text content
     alltokens = torch.cat(alltokens)
     return alltokens
 
@@ -55,21 +60,6 @@ def tokenize_file(args):
 
     print(f"Saving at {savepath}...")
     save(tokens, savepath)
-
-def back_translate(text: str, dst_language: str, translator: googletrans.Translator) -> str:
-    """ Translate the sentence to dst_language and translate back.
-        Args:
-            text: input text string
-            dst_language: target translated language
-            translator: Google translator
-        
-        Returns:
-            string of transplated English sentence
-    
-    """
-    forward_translate_text = translator.translate(text, dest = dst_language, src='en')
-    back_translate_text = translator.translate(forward_translate_text, dest='en', src=dst_language)
-    return back_translate_text
 
 
 if __name__ == '__main__':

@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, RandomSampler
 
 from src.options import Options
 from src import data, beir_utils, slurm, dist_utils, utils
-from src import moco, inbatch, simclr
+from src import moco, inbatch, simclr, simoco
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +177,8 @@ if __name__ == "__main__":
         model_class = inbatch.InBatch
     elif opt.contrastive_mode == "simclr":
         model_class = simclr.SimClr
+    elif opt.contrastive_mode == "simoco":
+        model_class = simoco.SiMoCo
     else:
         raise ValueError(
             f"contrastive mode: {opt.contrastive_mode} not recognised")

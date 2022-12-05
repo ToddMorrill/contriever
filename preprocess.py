@@ -1,4 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+"""This script 
+
+"""
 
 import os
 import argparse
@@ -69,7 +72,7 @@ def tokenize_file(args):
 # We generate the dataset represented as list of dictionaries
 # with the following keys: id, url, title, text.
 def tokenize_data(data_dict, idx):
-    file_name = "tmp_" + str(idx) + ".json"
+    file_name = "wiki_" + str(idx) + ".json"
     savepath = os.path.join(args.outdir, file_name) 
     if os.path.exists(savepath):
         if args.overwrite:
@@ -162,6 +165,7 @@ if __name__ == '__main__':
     print('length of whole wikipedia', len(data_dict))
     start = time.time()
     nArticles = 1280
+    os.makedirs(args.outdir, exist_ok=True)
     temp_datadict = data_dict.select(range(0,nArticles))
     split_data(temp_datadict)
     print(nArticles, 'articles, time taken:', time.time()-start)

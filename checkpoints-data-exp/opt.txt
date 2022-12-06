@@ -1,0 +1,55 @@
+                            augmentation: delete                                  	[default: none]
+                                   beta1: 0.9                                     
+                                   beta2: 0.98                                    
+                            chunk_length: 256                                     
+                        contrastive_mode: moco                                    
+                                 dropout: 0.1                                     
+                                     eps: 1e-06                                   
+                               eval_data: []                                      
+                           eval_datasets: []                                      
+                       eval_datasets_dir: ./                                      
+                               eval_freq: 500                                     
+                     eval_normalize_text: False                                   
+                         label_smoothing: 0.0                                     
+                            loading_mode: split                                   
+                                log_freq: 100                                     
+                              lower_case: False                                   
+                                      lr: 5e-05                                   	[default: 0.0001]
+                            lr_min_ratio: 0.0                                     
+                               main_port: 10001                                   
+                                 maxload: None                                    
+               moco_train_mode_encoder_k: False                                   
+                              model_path: ./checkpoint/                           
+                                momentum: 0.9995                                  	[default: 0.999]
+                           negative_ctxs: 1                                       
+                   negative_hard_min_idx: 0                                       
+                     negative_hard_ratio: 0.0                                     
+                                norm_doc: False                                   
+                              norm_query: False                                   
+                             num_workers: 5                                       
+                                   optim: adamw                                   
+                              output_dir: ./checkpoints-data-exp                  	[default: ./checkpoint/]
+                      per_gpu_batch_size: 52                                      	[default: 64]
+                 per_gpu_eval_batch_size: 256                                     
+                                 pooling: average                                 
+                       prob_augmentation: 0.1                                     	[default: 0.0]
+                         projection_size: 768                                     
+                              queue_size: 60840                                   	[default: 65536]
+                             random_init: False                                   
+                               ratio_max: 0.5                                     
+                               ratio_min: 0.1                                     
+                            reset_params: True                                    	[default: False]
+                      retriever_model_id: bert-base-uncased                       
+                                     rho: 0.05                                    
+                    sampling_coefficient: 0.0                                     
+                               save_freq: 50000                                   
+                               scheduler: linear                                  
+                          score_function: dot                                     
+                                    seed: 0                                       
+                             temperature: 0.05                                    	[default: 1.0]
+                                torchrun: True                                    	[default: False]
+                             total_steps: 5000                                    	[default: 1000]
+                              train_data: ['data_scripts/encoded-data/bert-base-uncased/wikipedia-out']	[default: []]
+                            warmup_steps: 2000                                    	[default: -1]
+                            weight_decay: 0.01                                    
+

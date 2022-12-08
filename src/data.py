@@ -16,6 +16,15 @@ from src import dist_utils
 
 logger = logging.getLogger(__name__)
 
+def get_longest_doc(tokens, neg_idx):
+    sub_docs = torch.tensor_split(tokens, neg_idx)
+    max_sub_doc = []
+    for sub_doc in sub_docs:
+        if len(sub_doc) > len(max_sub_doc):
+            max_sub_doc = sub_doc
+
+    return max_sub_doc
+
 
 def load_data(opt, tokenizer):
     datasets = {}
@@ -37,27 +46,31 @@ def load_dataset(data_path, loading_mode):
         files_split = list(np.array_split(files, dist_utils.get_world_size()))[dist_utils.get_rank()]
         for filepath in files_split:
             try:
-                docs = json.load(filepath)["docs"]
+                with open(filepath, 'r') as f:
+                    docs = json.load(f)["docs"]
                 for doc in docs:
                     tensors.append(torch.Tensor(doc['tokens']))
-                    tensors.append(torch.Tensor(-1))
+                    tensors.append(torch.Tensor([-1]))
                 #check downstream if each token needs to be a tensor itself, not an integer inside a tensor object
                 #tensors.append(torch.load(filepath, map_location="cpu"))
-            except:
+            except Exception as e:
+                logger.warning(f"Error: ", e)
                 logger.warning(f"Unable to load file {filepath}")
     elif loading_mode == "full":
         # loads all files into a single tensor
         for fin in files:
-            docs = json.load(fin)["docs"]
+            with open(fin, 'r') as f:
+                docs = json.load(f)["docs"]
             for doc in docs:
                 tensors.append(torch.Tensor(doc['tokens']))
-                tensors.append(torch.Tensor(-1))
+                tensors.append(torch.Tensor([-1]))
     elif loading_mode == "single":
         filepath = files[0]
-        docs = json.load(filepath)["docs"]
+        with open(filepath, 'r') as f:
+            docs = json.load(f)["docs"]
         for doc in docs:
             tensors.append(torch.Tensor(doc['tokens']))
-            tensors.append(torch.Tensor(-1))
+            tensors.append(torch.Tensor([-1]))
     if len(tensors) == 0:
         return None
     tensor = torch.cat(tensors)
@@ -115,12 +128,14 @@ class Dataset(torch.utils.data.Dataset):
         tokens = self.data[start_idx:end_idx]
 
         #takes a smaller crop if a document crossover occurs (chunk size is reduced to at most 128)
-        if torch.Tensor(-1) in tokens:
-            neg_idx = (tokens==-1).nonzero(as_tuple=True)[0]
-            if (neg_idx >= self.chunk_length/2):
-                tokens = tokens[0:neg_idx]
+        if torch.any(tokens == -1):
+            neg_idx = torch.where(tokens==-1)[0].tolist()
+            if len(neg_idx) == 1:
+                i = neg_idx[0]
+                tokens = max(tokens[0: i], tokens[i+1:], key=lambda x: len(x))
             else:
-                tokens = tokens[neg_idx+1:]
+                tokens = get_longest_doc(tokens, neg_idx)
+            
 
         q_tokens = randomcrop(tokens, self.opt.ratio_min, self.opt.ratio_max)
         k_tokens = randomcrop(tokens, self.opt.ratio_min, self.opt.ratio_max)

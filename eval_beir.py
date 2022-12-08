@@ -11,8 +11,8 @@ Examples:
         --datasets scifact trec-covid nfcorpus scidocs fiqa arguana quora nq hotpotqa dbpedia-entity fever climate-fever msmarco cqadupstack\
         --beir_dir ./beir-data \
         --per_gpu_batch_size 128 \
-        --output_dir ./results/v1 \
-        --model_name_or_path ./checkpoints/checkpoint/latest
+        --output_dir ./results/data-exp \
+        --model_name_or_path ./checkpoints-data-exp/checkpoint/latest
 
 TODO: debug Touche-2020
 """
